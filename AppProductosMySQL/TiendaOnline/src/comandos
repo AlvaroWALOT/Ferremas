@@ -1,0 +1,8 @@
+1.- primero hay que verificar la BD 
+.- se abre en cmd la carpeta BackendTiendaOnline
+.- se corre el comando node .\server.js
+
+2.- se inicia la pagina web
+.- se abre cmd en la carpeta TiendaOnline
+.- se corre el comando yarn dev
+
