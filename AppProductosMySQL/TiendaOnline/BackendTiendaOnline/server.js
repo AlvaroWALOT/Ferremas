@@ -26,9 +26,9 @@ DB.connect((err) => {
     console.log('Conectado a la base de datos MySQL');
 });
 
-// Endpoint para obtener productos
+// Endpoint para obtener productos (modificado)
 app.get('/api/productos', (req, res) => {
-    const SQL_QUERY = 'SELECT * FROM productos';
+    const SQL_QUERY = 'SELECT id, codigo_producto, categoria_id, marca, nombre, descripcion, ROUND(precio, 0) as precio, cantidad, imagen, fecha_actualizacion FROM productos';
     DB.query(SQL_QUERY, (err, result) => {
         if (err) {
             console.error('Error al obtener productos:', err);
@@ -38,7 +38,35 @@ app.get('/api/productos', (req, res) => {
     });
 });
 
-// Endpoint de pago
+// Endpoint para obtener el tipo de cambio desde el Banco Central
+app.get('/api/tipo-cambio', async (req, res) => {
+    const today = new Date();
+    const pastDate = new Date(today);
+    pastDate.setDate(today.getDate() - 7);
+
+    const formatDate = (date) => date.toISOString().split("T")[0];
+    const firstDate = formatDate(pastDate);
+    const lastDate = formatDate(today);
+
+    const url = `https://si3.bcentral.cl/SieteRestWS/SieteRestWS.ashx?user=alv.castroc@duocuc.cl&pass=Puchacabros13&function=GetSeries&series=F073.TCO.PRE.Z.D&firstDate=${firstDate}&lastDate=${lastDate}&type=json`;
+
+    try {
+        const fetchResponse = await fetch(url);
+        const data = await fetchResponse.json();
+
+        // 🚨 Aquí logeamos la respuesta cruda
+        console.log("Respuesta cruda del Banco Central:", JSON.stringify(data, null, 2));
+
+        res.json(data);
+    } catch (error) {
+        console.error("Error obteniendo tipo de cambio:", error);
+        res.status(500).json({ error: "Error obteniendo tipo de cambio" });
+    }
+});
+
+
+
+// Endpoint para pagar 
 app.post('/api/pagar', async (req, res) => {
     const carrito = req.body.carrito;
 
@@ -47,8 +75,14 @@ app.post('/api/pagar', async (req, res) => {
     }
 
     try {
-        // Calcular el total del carrito
-        const total = carrito.reduce((sum, p) => sum + p.precio * p.cantidad, 0);
+        // Calcular el total del carrito y redondearlo
+        const total = Math.round(carrito.reduce((sum, p) => sum + p.precio * p.cantidad, 0));
+
+        // Verificar que el total sea mayor que 0
+        if (total <= 0) {
+            return res.status(400).json({ error: 'El monto total debe ser mayor que 0.' });
+        }
+
         const buyOrder = 'ORD' + Date.now();
         const sessionId = 'SESS' + Date.now();
         const returnUrl = 'http://localhost:3006/api/pago/respuesta';
@@ -65,7 +99,7 @@ app.post('/api/pagar', async (req, res) => {
         const response = await tx.create(
             buyOrder,
             sessionId,
-            total,
+            total, // Este total ya está redondeado
             returnUrl
         );
 
@@ -79,6 +113,25 @@ app.post('/api/pagar', async (req, res) => {
             details: err.message
         });
     }
+});
+
+// Endpoint para obtener un producto específico por ID
+app.get('/api/productos/:id', (req, res) => {
+    const productId = req.params.id;
+    const SQL_QUERY = 'SELECT * FROM productos WHERE id = ?';
+
+    DB.query(SQL_QUERY, [productId], (err, result) => {
+        if (err) {
+            console.error('Error al obtener producto:', err);
+            return res.status(500).json({ error: 'Error al obtener producto' });
+        }
+
+        if (result.length === 0) {
+            return res.status(404).json({ error: 'Producto no encontrado' });
+        }
+
+        res.json(result[0]);
+    });
 });
 
 // Endpoint para manejar la respuesta de Webpay (GET y POST)
