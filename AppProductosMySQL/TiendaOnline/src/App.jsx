@@ -119,7 +119,7 @@ function App() {
 
   return (
     <div className="container m-5">
-      <h1>Tienda Online</h1>
+      <h1>FERREMAS</h1>
       <hr />
 
       {/* Selector de moneda */}

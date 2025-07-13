@@ -2,11 +2,17 @@ const { WebpayPlus, Options, IntegrationCommerceCodes, IntegrationApiKeys, Envir
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
+const path = require('path'); // Requerido para manejar rutas de imágenes
 
 const app = express();
 const PORT = 3006;
 app.use(cors());
 app.use(express.json());
+
+// Configuración de middleware
+app.use(cors());
+app.use(express.json());
+app.use('/images', express.static(path.join(__dirname, 'public', 'images'))); // Servir imágenes estáticas
 
 // Configuración completa de la base de datos
 const DB = mysql.createConnection({
